@@ -44,19 +44,25 @@ class Processing:
 
         # Normalize the data using Min-Max scaling
         scaler = MinMaxScaler()
-        df[[target_column] + 
-        [f'{target_column}_lag_{i}' for i in range(1, look_back + 1)] + 
+        df[[target_column] +
+        [f'{target_column}_lag_{i}' for i in range(1, look_back + 1)] +
         [f"{target_column}_future_{i}" for i in range(1, future_steps+1)]] = scaler.fit_transform(
-            df[[target_column] + [f'{target_column}_lag_{i}' for i in range(1, look_back + 1)] + 
+            df[[target_column] + [f'{target_column}_lag_{i}' for i in range(1, look_back + 1)] +
             [f"{target_column}_future_{i}" for i in range(1, future_steps+1)]]
         )
 
         # Reset index
         df.reset_index(drop=True, inplace=True)
 
-        return df
-    
+        return df, scaler
+
 class Model:
+    def load(model):
+        model_filename = f"{model}.h5"
+        if os.path.isfile(model_filename):
+            return tf.keras.models.load_model(model_filename)
+        else:
+            return Model.download(model)
 
     def download(model):
         """
@@ -78,10 +84,10 @@ class Model:
                      'lstm': "https://github.com/ballisticmoo/stock_price_predictor/raw/main/lstm.h5",
                      'pe': "https://github.com/ballisticmoo/stock_price_predictor/raw/main/pe.h5",
                      'peg': "https://github.com/ballisticmoo/stock_price_predictor/raw/main/peg.h5",}
-        
+
         if model not in model_urls:
             raise ValueError(f"Model '{model}' not found in the list.")
-        
+
         model_url = model_urls[model]
 
             # Download the model
@@ -99,7 +105,7 @@ class Model:
         loaded_model = tf.keras.models.load_model(download_path)
 
         return loaded_model
-    
+
 
     def load_architecture(architecture):
         """
@@ -125,15 +131,15 @@ class Model:
                                    LSTM(units=50),
                                    Dropout(0.2),
                                    Dense(units=7)]}
-        
+
         if architecture not in architectures:
             raise ValueError(f"Model architecture '{architecture}' not found in the list.")
-        
+
         model = Sequential()
         model.compile(optimizer='adam', loss='mean_squared_error')
 
         return model
-    
+
 class Evaluate:
 
     def calculate_errors(y_test, y_pred):
@@ -154,7 +160,7 @@ class Evaluate:
         MSE = mean_squared_error(y_test, y_pred)
 
         return {'MAE': MAE, 'MSE': MSE}
-    
+
     def plot_predictions(y_test, y_pred):
         """
         Plot actual and predicted stock prices over time.
@@ -174,6 +180,3 @@ class Evaluate:
         plt.ylabel('Stock Price')
         plt.legend(["actual", "predictions"], loc ="lower right")
         plt.show()
-
-    
-
